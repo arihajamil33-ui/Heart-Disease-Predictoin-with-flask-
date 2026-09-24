@@ -1,0 +1,116 @@
+{% import "_icons.html" as icons %}
+{% extends "base.html" %}
+{% block title %}Doctor Dashboard &mdash; Heart Disease Prediction{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ icons.icon('clipboard', 'title-icon') }}Doctor Dashboard</h1>
+<p class="page-subtitle">Review patient assessments and confirm or question the AI verdict.</p>
+<hr class="divider">
+<div class="panel">
+  <div class="panel-title">Pending pool ({{ pool|length }})</div>
+  {% if pool %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Review</th><th>Requested</th><th class="num">Age</th><th>Gender</th>
+            <th class="num">AI risk</th><th>AI verdict</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in pool %}
+            <tr>
+              <td>#{{ r.id }}</td>
+              <td class="text-sm">{{ r.requested_at[:16] }}</td>
+              <td class="num">{{ r.age|int }}</td>
+              <td>{{ 'Male' if r.gender == 1 else 'Female' }}</td>
+              <td class="num"><strong>{{ '%.1f'|format(r.probability * 100) }}%</strong></td>
+              <td>
+                {% if r.risk.label == 'HIGH RISK' %}
+                  <span class="badge badge-red">High</span>
+                {% else %}
+                  <span class="badge badge-green">Low</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('doctor_claim', review_id=r.id) }}"
+                      class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="btn btn-sm">Claim</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="text-sm text-muted mt-1">
+      Patient names stay hidden until you claim a review. The first doctor
+      to claim wins it - everyone else sees a notice.
+    </div>
+  {% else %}
+    <div class="text-muted text-sm">No unclaimed reviews right now.</div>
+  {% endif %}
+</div>
+<div class="grid grid-2">
+  <div class="panel">
+    <div class="panel-title">My reviews in progress ({{ in_progress|length }})</div>
+    {% if in_progress %}
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            {% for r in in_progress %}
+              <tr>
+                <td>
+                  <strong>#{{ r.id }}</strong> {{ r.patient_name }}
+                  <div class="text-sm text-muted">
+                    AI risk {{ '%.1f'|format(r.ai_probability * 100) }}% &middot;
+                    assessed {{ r.predicted_at[:16] }}
+                  </div>
+                </td>
+                <td class="num">
+                  <a href="{{ url_for('doctor_review', review_id=r.id) }}"
+                     class="btn btn-sm">Open</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-muted text-sm">Nothing in progress. Claim a review above.</div>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <div class="panel-title">My completed reviews ({{ completed|length }})</div>
+    {% if completed %}
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            {% for r in completed %}
+              <tr>
+                <td>
+                  <strong>#{{ r.id }}</strong> {{ r.patient_name }}
+                  <div class="text-sm text-muted">
+                    {% if r.verdict == 'Agree' %}
+                      <span class="badge badge-green">Agree</span>
+                    {% else %}
+                      <span class="badge badge-red">Disagree</span>
+                    {% endif %}
+                    reviewed {{ r.reviewed_at[:16] if r.reviewed_at else '' }}
+                  </div>
+                </td>
+                <td class="num">
+                  <a href="{{ url_for('doctor_review', review_id=r.id) }}"
+                     class="btn btn-sm btn-grey">View</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-muted text-sm">No completed reviews yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

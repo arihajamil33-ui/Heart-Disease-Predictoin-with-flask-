@@ -1,0 +1,17 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Local database (created and seeded automatically on first run)
+heart_disease.db
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

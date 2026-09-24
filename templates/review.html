@@ -1,0 +1,162 @@
+{% import "_icons.html" as icons %}
+{% extends "base.html" %}
+{% block title %}Doctor Review &mdash; Heart Disease Prediction{% endblock %}
+{% block content %}
+<h1 class="page-title">{{ icons.icon('clipboard', 'title-icon') }}Review #{{ review.id }}</h1>
+<p class="page-subtitle">
+  Requested {{ review.requested_at[:16] }}
+  &middot; Status:
+  {% if review.status == 'Reviewed' %}
+    <span class="badge badge-green">Reviewed</span>
+  {% elif review.status == 'In Review' %}
+    <span class="badge badge-blue">In Review</span>
+  {% else %}
+    <span class="badge badge-amber">Pending</span>
+  {% endif %}
+</p>
+<hr class="divider">
+<div class="grid grid-2">
+  <div>
+    <div class="panel">
+      <div class="panel-title">Patient</div>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><td>Name</td><td>{{ review.patient_name or review.patient_username }}</td></tr>
+            <tr><td>Assessed on</td><td>{{ record.timestamp[:16] }}</td></tr>
+            <tr>
+              <td>AI probability</td>
+              <td class="num"><strong>{{ '%.1f'|format(record.probability * 100) }}%</strong>
+                ({{ risk.label }})</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Clinical indicators</div>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><td>Age</td><td class="num">{{ record.age|int }} years</td></tr>
+            <tr><td>Gender</td><td class="num">{{ 'Male' if record.gender == 1 else 'Female' }}</td></tr>
+            <tr><td>Height</td><td class="num">{{ record.height|int }} cm</td></tr>
+            <tr><td>Weight</td><td class="num">{{ record.weight }} kg</td></tr>
+            <tr><td>BMI</td><td class="num">{{ bmi }}</td></tr>
+            <tr><td>Systolic BP</td><td class="num">{{ record.ap_hi|int }} mmHg</td></tr>
+            <tr><td>Diastolic BP</td><td class="num">{{ record.ap_lo|int }} mmHg</td></tr>
+            <tr><td>Cholesterol</td><td class="num">{{ level_labels.get(record.cholesterol) }}</td></tr>
+            <tr><td>Glucose</td><td class="num">{{ level_labels.get(record.gluc) }}</td></tr>
+            <tr><td>Smoker</td><td class="num">{{ 'Yes' if record.smoke else 'No' }}</td></tr>
+            <tr><td>Alcohol Use</td><td class="num">{{ 'Yes' if record.alco else 'No' }}</td></tr>
+            <tr><td>Physically Active</td><td class="num">{{ 'Yes' if record.active else 'No' }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Model votes</div>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            {% for name, prob in votes.items() %}
+              <tr>
+                <td>{{ name }}</td>
+                <td class="num">{{ '%.1f'|format(prob * 100) }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div>
+    {% if can_edit %}
+      <div class="panel">
+        <div class="panel-title">Your verdict</div>
+        <form method="post"
+              action="{{ url_for('doctor_review', review_id=review.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="field">
+            <label for="verdict">Verdict <span class="req">*</span></label>
+            <select id="verdict" name="verdict" required>
+              <option value="" {% if not review.verdict %}selected{% endif %} disabled>Choose...</option>
+              <option value="Agree" {% if review.verdict == 'Agree' %}selected{% endif %}>Agree - the AI assessment looks right</option>
+              <option value="Disagree" {% if review.verdict == 'Disagree' %}selected{% endif %}>Disagree - I would assess this differently</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="notes">Remarks to the patient <span class="req">*</span></label>
+            <textarea id="notes" name="notes" rows="5" maxlength="1000"
+                      placeholder="What should the patient do next? (max 1000 characters)"
+                      required>{{ review.notes or '' }}</textarea>
+          </div>
+          <div class="field">
+            <label for="recommended_tests">Recommended tests (optional)</label>
+            <input type="text" id="recommended_tests" name="recommended_tests"
+                   maxlength="300" value="{{ review.recommended_tests or '' }}"
+                   placeholder="e.g. Lipid profile, ECG">
+          </div>
+          <div class="field">
+            <label for="follow_up_date">Follow-up date (optional)</label>
+            <input type="date" id="follow_up_date" name="follow_up_date"
+                   value="{{ review.follow_up_date or '' }}">
+            <div class="hint">Must be today or later.</div>
+          </div>
+          <div class="btn-row">
+            <button type="submit" class="btn">Submit review</button>
+            <a href="{{ url_for('doctor_dashboard') }}" class="btn btn-grey">Cancel</a>
+          </div>
+          <div class="text-sm text-muted mt-1">
+            A submitted review is final - it cannot be edited afterwards.
+          </div>
+        </form>
+      </div>
+    {% else %}
+      <div class="panel">
+        <div class="panel-title">Doctor's remarks</div>
+        {% if review.status == 'Reviewed' %}
+          <div class="text-sm">
+            <strong>Reviewed by</strong>
+            Dr. {{ review.doctor_name or review.doctor_username or '(account removed)' }}
+            {% if review.doctor_specialization %}
+              <span class="text-muted">({{ review.doctor_specialization }})</span>
+            {% endif %}
+          </div>
+          <div style="margin:10px 0;">
+            {% if review.verdict == 'Agree' %}
+              <span class="badge badge-green">Doctor agrees with the AI</span>
+            {% else %}
+              <span class="badge badge-red">Doctor disagrees with the AI</span>
+            {% endif %}
+          </div>
+          {% if review.notes %}
+            <div class="note-box">{{ review.notes }}</div>
+          {% endif %}
+          {% if review.recommended_tests %}
+            <div class="text-sm" style="margin-top:10px;">
+              <strong>Recommended tests:</strong> {{ review.recommended_tests }}
+            </div>
+          {% endif %}
+          {% if review.follow_up_date %}
+            <div class="text-sm" style="margin-top:6px;">
+              <strong>Follow-up date:</strong> {{ review.follow_up_date }}
+            </div>
+          {% endif %}
+          <div class="text-sm text-muted mt-1">
+            Reviewed at {{ review.reviewed_at[:16] if review.reviewed_at else '' }}.
+          </div>
+        {% elif review.status == 'In Review' %}
+          <div class="text-muted text-sm">
+            A doctor has claimed this review and is still working on it.
+          </div>
+        {% else %}
+          <div class="text-muted text-sm">
+            Waiting for a doctor to claim this review.
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
