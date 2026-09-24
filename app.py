@@ -784,14 +784,15 @@ def server_error(e):
     app.logger.error(f"Internal error on {request.path}: {e}", exc_info=True)
     return render_template("errors/500.html"), 500
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
     print("=" * 56)
     print("  Heart Disease Prediction")
-    print("  Running at  : http://127.0.0.1:5000")
+    print("  Running at  : http://127.0.0.1:%d" % port)
     print("  Default user: admin / admin123   (role: Admin)")
     print("  Press CTRL+C to stop")
     print("=" * 56)
     try:
         from waitress import serve
-        serve(app, host="127.0.0.1", port=5000)
+        serve(app, host="0.0.0.0", port=port)
     except ImportError:
-        app.run(host="127.0.0.1", port=5000, debug=False)
+        app.run(host="0.0.0.0", port=port, debug=False)
